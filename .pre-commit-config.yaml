@@ -18,9 +18,11 @@ repos:
           (?x)^(
               .*\.yaml
           )$
+      args:
+        - --ignore-words-list=astroid
 
 - repo: https://github.com/astral-sh/ruff-pre-commit
-  rev: v0.14.6
+  rev: v0.14.8
   hooks:
     - id: ruff
       args: ["--fix", "--show-fixes"]
@@ -48,7 +50,7 @@ repos:
     - id: pyproject-fmt
 
 - repo: https://github.com/woodruffw/zizmor-pre-commit
-  rev: v1.16.3
+  rev: v1.18.0
   hooks:
     - id: zizmor
 
