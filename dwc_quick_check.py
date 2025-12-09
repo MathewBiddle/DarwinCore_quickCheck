@@ -64,9 +64,9 @@ df_emof = pd.read_csv(test_dir.joinpath("emof_bd.csv"))
 def check_merge_tables(df_event, df_occurrence, df_emof):
     """Using `one_to_many` to check if merge keys are unique in left dataset."""
     df_event_occur_emof = None
-    print(f"event: {df_event.shape}")
-    print(f"occurrence: {df_occurrence.shape}")
-    print(f"emof: {df_emof.shape}")
+    logging.info(f"event: {df_event.shape}")
+    logging.info(f"occurrence: {df_occurrence.shape}")
+    logging.info(f"emof: {df_emof.shape}")
     try:
         df_event_occur = df_event.merge(
             df_occurrence, on="eventID", validate="one_to_many"
@@ -75,7 +75,7 @@ def check_merge_tables(df_event, df_occurrence, df_emof):
             df_emof, on="occurrenceID", validate="one_to_many", suffixes=(None, None)
         )
     except pd.errors.MergeError as err:
-        print(f"Failed Merging DataFrames. \n{err}")
+        logging.info(f"Failed Merging DataFrames. \n{err}")
     return df_event_occur_emof
 
 
@@ -108,27 +108,26 @@ required_event_columns = [
 
 
 def check_required_columns(df, columns):
-    print("🔍 Checking structure...")
+    logging.info("🔍 Checking structure...")
     missing_cols = list(set(columns).difference(df.columns))
 
     if missing_cols:
-        print(f"Missing required DwC columns: {', '.join(missing_cols)}")
+        logging.info(f"Missing required DwC columns: {', '.join(missing_cols)}")
         return False
     return True
 
 
 def check_null_values(df, columns):
-    print("🔍 Checking completeness...")
+    logging.info("🔍 Checking completeness...")
     missing = df.columns[df.isna().any()].to_list()
     if missing:
-        print(f"WARNING! Columns {missing} have missing values.")
-        print(f"WARNING! Columns {missing} have missing values.")
+        logging.info(f"WARNING! Columns {missing} have missing values.")
         return False
     return True
 
 
 def check_coordinates(df):
-    print("🔍 Checking coordinates...")
+    logging.info("🔍 Checking coordinates...")
     res = True
     if "decimalLatitude" in df.columns:
         invalid_lat = df[
@@ -137,7 +136,7 @@ def check_coordinates(df):
             | (df["decimalLatitude"] > 90)
         ]
         if not invalid_lat.empty:
-            print(
+            logging.info(
                 f"CRITICAL! Invalid decimalLatitude values detected. {invalid_lat.index.tolist()}"
             )
             res = False
@@ -149,7 +148,7 @@ def check_coordinates(df):
             | (df["decimalLongitude"] > 180)
         ]
         if not invalid_lon.empty:
-            print(
+            logging.info(
                 f"CRITICAL! Invalid decimalLongitude values detected. {invalid_lon.index.tolist()}"
             )
             res = False
@@ -157,10 +156,10 @@ def check_coordinates(df):
 
 
 def check_depth_consistency(df):
-    print("🌊 Checking aquatic depth logic...")
+    logging.info("🌊 Checking aquatic depth logic...")
     res = True
     if ("minimumDepthInMeters", "maximumDepthInMeters") not in df.columns:
-        print(
+        logging.info(
             "WARNING! No depth information found (minimumDepthInMeters/maximumDepthInMeters)."
         )
         # We return here b/c we cannot run the tests below without these columns.
@@ -168,14 +167,14 @@ def check_depth_consistency(df):
 
     min_depth = pd.to_numeric(df["minimumDepthInMeters"], errors="coerce")
     if not min_depth.isna().empty:
-        print(
+        logging.info(
             f"WARNING! Non-numeric values in minimumDepthInMeters {min_depth.index.tolist()}"
         )
         res = False
 
     max_depth = pd.to_numeric(df["minimumDepthInMeters"], errors="coerce")
     if not max_depth.isna().empty:
-        print(
+        logging.info(
             f"WARNING! Non-numeric values in minimumDepthInMeters {max_depth.index.tolist()}"
         )
         res = False
@@ -184,7 +183,7 @@ def check_depth_consistency(df):
     illogical = all(min_depth > max_depth)
 
     if not illogical.empty:
-        print(
+        logging.info(
             f"CRITICAL! minimumDepthInMeters is greater than maximumDepthInMeters {illogical.tolist()}"
         )
         res = False
@@ -197,10 +196,10 @@ def check_scientific_names(df):
     # TODO: If these are mandatory columns, should they be in the check above?
     # Or do we need to disambiguate Errors from Warnings in the HTML report?
     if "scientificName" not in df.columns:
-        print("Missing scientificName.")
+        logging.info("Missing scientificName.")
         return
 
-    print("🐠 Verifying taxonomy with WoRMS API (this may take a moment)...")
+    logging.info("🐠 Verifying taxonomy with WoRMS API (this may take a moment)...")
     # TODO: Should this be exact or fuzzy?
     # For example, we have 'polychaeta spp. 1' and 'polychaeta spp. 2' there.
     unique_names = df["scientificName"].dropna().unique().tolist()
@@ -231,20 +230,20 @@ def check_scientific_names(df):
                         # Check if accepted
                         match = matches[0]  # Take best match
                         if match["status"] != "accepted":
-                            print(
+                            logging.info(
                                 f'WARNING", f"Taxon "{original_name}" is {match["status"]}. Accepted name: {match["valid_name"]}, {match["url"]}'
                             )
             else:
-                print("WARNING", f"WoRMS API Error: {response.status_code}")
+                logging.info("WARNING", f"WoRMS API Error: {response.status_code}")
 
         except Exception as e:
-            print(f"Error connecting to WoRMS: {e}")
+            logging.info(f"Error connecting to WoRMS: {e}")
 
         # Polite delay
         time.sleep(0.5)
 
     if unmatched_taxa:
-        print(
+        logging.info(
             "WARNING", f"Taxa not found in WoRMS: {', '.join(unmatched_taxa[:10])}..."
         )
 
@@ -255,15 +254,15 @@ for name, df, cols in zip(
     [required_event_columns, required_occurrence_columns, required_emof_columns],
 ):
     # TODO: When using namedtuple we can skip tests that won't pass, like checking for depth in dfs that should not have it.
-    print(f"Started {name}.")
+    logging.info(f"Started {name}.")
     res = [
         check_required_columns(df, columns=cols),
         check_null_values(df, columns=cols),
         check_coordinates(df),
         check_depth_consistency(df),
     ]
-    print(res)
-    print(f"Finished {name}.")
+    logging.info(res)
+    logging.info(f"Finished {name}.")
 
     check_scientific_names(df)
 
