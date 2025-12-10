@@ -180,7 +180,7 @@ def check_depth_consistency(df):
         res = False
 
     # Check logic: Min should not be greater than Max
-    illogical = all(min_depth > max_depth)
+    illogical = all(min_depth >= max_depth)
 
     if not illogical.empty:
         logging.info(
