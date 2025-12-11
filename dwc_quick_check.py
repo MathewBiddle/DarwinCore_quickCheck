@@ -41,9 +41,10 @@ This performs the following checks:
    identifying any unaccepted or unfound taxa.
 """
 
+import functools
+
 import pandas as pd
 import requests
-import time
 import logging
 from pathlib import Path
 
@@ -191,61 +192,41 @@ def check_depth_consistency(df):
 
 
 def check_scientific_names(df):
-    # TODO: Refactor with memoize and individual name check in the memoized function
-    # for speed and server side optiomization.
-    # TODO: If these are mandatory columns, should they be in the check above?
-    # Or do we need to disambiguate Errors from Warnings in the HTML report?
     if "scientificName" not in df.columns:
         logging.info("Missing scientificName.")
         return
 
     logging.info("🐠 Verifying taxonomy with WoRMS API (this may take a moment)...")
-    # TODO: Should this be exact or fuzzy?
-    # For example, we have 'polychaeta spp. 1' and 'polychaeta spp. 2' there.
-    unique_names = df["scientificName"].dropna().unique().tolist()
-    # WoRMS AphiaRecordsByMatchNames endpoint
-    url = "https://www.marinespecies.org/rest/AphiaRecordsByMatchNames"
-
-    # Process in chunks of 50 to avoid timeouts
-    chunk_size = 50
-    # invalid_taxa = []  # TODO: Unused
-    unmatched_taxa = []
+    names = df["scientificName"].to_list()
 
     # TODO: Gemini thinks this is matlab!?
-    for i in range(0, len(unique_names), chunk_size):
-        chunk = unique_names[i : i + chunk_size]
-        try:
-            # Construct query parameters
-            params = {"scientificnames[]": chunk, "marine_only": "true"}
-            response = requests.get(url, params=params)
+    return [_check_scientific_name(name) for name in names]
 
-            if response.status_code == 200:
-                results = response.json()
 
-                # The API returns a list of lists (one list per name queried)
-                for original_name, matches in zip(chunk, results):
-                    if not matches:
-                        unmatched_taxa.append(original_name)
-                    else:
-                        # Check if accepted
-                        match = matches[0]  # Take best match
-                        if match["status"] != "accepted":
-                            logging.info(
-                                f'WARNING", f"Taxon "{original_name}" is {match["status"]}. Accepted name: {match["valid_name"]}, {match["url"]}'
-                            )
-            else:
-                logging.info("WARNING", f"WoRMS API Error: {response.status_code}")
+@functools.lru_cache(maxsize=128)
+def _check_scientific_name(name):
+    url = "https://www.marinespecies.org/rest/AphiaRecordsByMatchNames"
+    params = {"scientificnames[]": name, "marine_only": "true"}
+    response = requests.get(url, params=params)
 
-        except Exception as e:
-            logging.info(f"Error connecting to WoRMS: {e}")
+    if response.status_code == 200:
+        results = response.json()
+    else:
+        print(f"WARNING! WoRMS API Error: {response.status_code}")
+        return False
 
-        # Polite delay
-        time.sleep(0.5)
+    # The API returns a list of lists (one list per name queried).
+    if len(results) > 1:
+        print("WARNING! Found more than 1 match!")
 
-    if unmatched_taxa:
-        logging.info(
-            "WARNING", f"Taxa not found in WoRMS: {', '.join(unmatched_taxa[:10])}..."
+    # It is a list inside a list, not sure of we'll have more than 1 element in the nested one.
+    result = results[0][0]  # Take first match.
+    if result["status"] != "accepted":
+        print(
+            f"WARNING! Taxon {name} is {result['status']}. Accepted name: {result['valid_name']}, {result['url']}"
         )
+        return False
+    return True
 
 
 for name, df, cols in zip(
