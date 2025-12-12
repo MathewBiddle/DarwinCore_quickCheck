@@ -209,6 +209,10 @@ def check_scientific_names(df):
 def check_scientific_name(name):
     response = _check_scientific_name(name)
 
+    # Bail early to avoid unnecessary retries.
+    if response.status_code == 204 or response.status_code == 400:
+        return False
+
     if response.status_code == 200:
         results = response.json()
     else:
@@ -219,8 +223,8 @@ def check_scientific_name(name):
     if len(results) > 1:
         print("WARNING! Found more than 1 match!")
 
-    # It is a list inside a list, not sure of we'll have more than 1 element in the nested one.
-    result = results[0][0]  # Take first match.
+    # Take first match.
+    result = results[0]
     if result["status"] != "accepted":
         print(
             f"WARNING! Taxon {name} is {result['status']}. Accepted name: {result['valid_name']}, {result['url']}"
@@ -231,9 +235,8 @@ def check_scientific_name(name):
 
 @stamina.retry(on=requests.exceptions.HTTPError, attempts=3)
 def _check_scientific_name(name):
-    url = "https://www.marinespecies.org/rest/AphiaRecordsByMatchNames"
-    params = {"scientificnames[]": name, "marine_only": "true"}
-    return requests.get(url, params=params)
+    url = f"http://www.marinespecies.org/rest/AphiaRecordsByName/{name}?like=true&marine_only=true"
+    return requests.get(url, timeout=60)
 
 
 for name, df, cols in zip(
