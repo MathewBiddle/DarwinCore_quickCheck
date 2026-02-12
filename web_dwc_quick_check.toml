@@ -1,7 +1,6 @@
 packages = [
   "pandas",
-  "pyjanitor"
-  "requests"
+  "pyjanitor",
   "requests",
-  "stamina"
+  "stamina",
 ]
