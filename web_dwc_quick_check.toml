@@ -1,6 +1,6 @@
 packages = [
   "pandas",
-  "pyjanitor",
+  "pyjanitor>=0.32.3,<0.32.6",
   "requests",
   "stamina",
 ]
