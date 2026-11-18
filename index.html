@@ -35,18 +35,40 @@
   </div>
 
   <!-- Data upload -->
-<div class="row align-items-center mb-4">
-  <div class="col-md-3">
-    <h5 class="mb-0">Upload your dataset:</h5>
-  </div>
 
-  <div class="col-md-3">
-    <label class="btn btn-primary mb-0" style="cursor: pointer;">
-      <i class="fa fa-upload"></i> Browse
-      <input type="file" id="fileInput" style="display: none;" />
-    </label>
-    <small id="filename-display" class="text-muted ml-2" style="word-break: break-word;"></small>
-  </div>
+
+<div class="container">
+
+    <h2>Upload CSV</h2>
+
+    <label>Event:&emsp;&emsp;&nbsp;&nbsp;</label>
+    <input type="file" id="event_bd" accept=".csv">
+    <br>
+    <label>Occurrence:</label>
+    <input type="file" id="occurrence_bd" accept=".csv">
+    <br>
+    <label>EMOF:&emsp;&emsp;&nbsp;</label>
+    <input type="file" id="emof_bd" accept=".csv">
+
+    <button py-click="load_csv">
+        Load CSV Files
+    </button>
+
+    <p id="status"></p>
+
+</div>
+
+<div class="container">
+
+    <h2>Loaded DataFrames</h2>
+
+    <div id="output"></div>
+
+</div>
+
+<!-- Load external Python file -->
+<py-script src="./main.py" config=./web_dwc_quick_check.toml></py-script>
+
 
 
   <div class="col-md-3">
@@ -70,7 +92,7 @@
     </div>
   </div>
 
-<py-script src="./dwc_quick_check.py" config="./web_dwc_quick_check.toml"></py-script>
+<!-- <py-script src="./dwc_quick_check.py" config="./web_dwc_quick_check.toml"></py-script> -->
 <script src="app.js"></script>
 
 </body>
