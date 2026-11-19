@@ -94,7 +94,7 @@ async def load_csv(event):
     if loaded == 3:
         execute_merge()
     else:
-        status.innerText += " Please upload all three CSV files."
+        status.innerText += "Fail to load all 3 tables."
 
 
 def execute_merge():
