@@ -63,6 +63,7 @@ async def load_csv(event):
             loaded += 1
             
             output.innerHTML += f"""
+                <hr class="section-divider" />
                 <div class="dataset">
                     <h3>{name}</h3>
                     <p>
@@ -72,8 +73,8 @@ async def load_csv(event):
                 </div>
             """
 
-            html_table = df.head(5).to_html(
-                index=False,
+            html_table = df.describe(include='all').T.to_html(
+                index=True,
                 border=0
             )
 

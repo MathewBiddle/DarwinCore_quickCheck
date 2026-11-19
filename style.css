@@ -3,7 +3,7 @@ body {
 }
 
 .jumbotron {
-  background: linear-gradient(135deg, #007bff, #6610f2);
+  background: linear-gradient(135deg, #007396, #003087);
   color: white;
   padding: 2rem 1rem;
   border-radius: 0.5rem;
@@ -90,4 +90,34 @@ body {
   height: 2px;
   background: linear-gradient(to right, transparent, #bbb, transparent);
   margin: 2.5rem 0;
+}
+
+table {
+  font-family: Arial, Helvetica, sans-serif;
+  border-collapse: collapse;
+  width: 100%;
+}
+
+td, th {
+  border: 1px solid #ddd;
+  padding: 8px;
+}
+
+tr:nth-child(even){background-color: #f2f2f2;}
+
+tr:hover {background-color: #ddd;}
+
+th {
+  padding-top: 12px;
+  padding-bottom: 12px;
+  text-align: left;
+  background-color: #007396;
+  color: white;
+}
+
+summary {
+  font-size: 1.7rem;
+  font-weight: bold;
+  margin: -0.5em -0.5em 0;
+  padding: 0.5em;
 }

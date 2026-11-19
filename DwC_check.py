@@ -28,7 +28,8 @@ DataFrames.
 ##             Libraries             ##
 ##-----------------------------------##
 import functools
-
+from js import document
+from io import StringIO
 import stamina
 
 import pandas as pd
@@ -78,6 +79,7 @@ async def load_csv(event):
             loaded += 1
 
             output.innerHTML += f"""
+                <hr class="section-divider" />
                 <div class="dataset">
                     <h3>{name}</h3>
                     <p>
@@ -87,8 +89,8 @@ async def load_csv(event):
                 </div>
             """
 
-            html_table = df.head(5).to_html(
-                index=False,
+            html_table = df.describe(include='all').T.to_html(
+                index=True,
                 border=0
             )
 
@@ -159,9 +161,6 @@ def required_occ_columns(df):
     required_occ_columns = [
     "occurrenceID",
     "scientificName",
-    "eventDate",
-    "decimalLatitude",
-    "decimalLongitude",
     "basisOfRecord",
     "occurrenceStatus",
 ]
@@ -213,9 +212,14 @@ def check_occ_dupes(df):
     occ_dupes = ids[ids.duplicated()].unique().tolist()
 
     if occ_dupes:
+        msg = f"❌ Duplicate occurrenceIDs found: {occ_dupes}"
+        res = True
         print(f"❌ Duplicate occurrenceIDs found: {occ_dupes}")
     else:
+        msg = "✅ No duplicate occurrenceIDs!"
+        res = False
         print("✅ No duplicate occurrenceIDs!")
+    return res, msg
 
 # -------- check_event_dupes --------
 def check_event_dupes(df):
@@ -228,9 +232,14 @@ def check_event_dupes(df):
     event_dupes = ids[ids.duplicated()].unique().tolist()
 
     if event_dupes:
+        msg = f"❌ Duplicate eventIDs found: {event_dupes}"
+        res = True
         print(f"❌ Duplicate eventIDs found: {event_dupes}")
     else:
+        res = False
+        msg = "✅ No duplicate eventIDs!"
         print("✅ No duplicate eventIDs!")
+    return res, msg
 
 # -------- check_merge_tables --------
 
@@ -279,37 +288,37 @@ def check_merge_tables(df_event, df_occurrence, df_emof):
     except pd.errors.MergeError as err:
         return None, f"❌ Merge tables failed.\n{err}"
 
-# -------- check_dwc_columns --------
-# load in the list of terms for event, occurrence, and emof
-TDWG_BASE = "https://raw.githubusercontent.com/tdwg/dwc/master/dist/dwc-a/"
-TERM_LISTS = {
-    "event": f"{TDWG_BASE}dwc_event_core_vertical.csv",
-    "occurrence": f"{TDWG_BASE}dwc_occurrence_core_vertical.csv",
-    "emof": f"{TDWG_BASE}measurements_or_facts_extension_vertical.csv",
-}
+# # -------- check_dwc_columns --------
+# # load in the list of terms for event, occurrence, and emof
+# TDWG_BASE = "https://raw.githubusercontent.com/tdwg/dwc/master/dist/dwc-a/"
+# TERM_LISTS = {
+#     "event": f"{TDWG_BASE}dwc_event_core_vertical.csv",
+#     "occurrence": f"{TDWG_BASE}dwc_occurrence_core_vertical.csv",
+#     "emof": f"{TDWG_BASE}measurements_or_facts_extension_vertical.csv",
+# }
 
-# download all three lists and combine them into one set of valid terms
-ALL_TERMS = set()
-for url in TERM_LISTS.values():
-    ALL_TERMS |= set(pd.read_csv(url, header=None)[0])
+# # download all three lists and combine them into one set of valid terms
+# ALL_TERMS = set()
+# for url in TERM_LISTS.values():
+#     ALL_TERMS |= set(pd.read_csv(url, header=None)[0])
 
-# function
-def check_all_columns(df):
-    """
-    Check every column name against the combined TDWG term lists.
+# # function
+# def check_all_columns(df):
+#     """
+#     Check every column name against the combined TDWG term lists.
 
-    @param df        A pandas dataframe
+#     @param df        A pandas dataframe
 
-    @return          (res, msg): True/False for pass/fail, and a message
-    """
-    unknown = [col for col in df.columns if col not in ALL_TERMS]
+#     @return          (res, msg): True/False for pass/fail, and a message
+#     """
+#     unknown = [col for col in df.columns if col not in ALL_TERMS]
 
-    res = True
-    msg = "✅ All column names are valid DwC terms"
-    if unknown:
-        res = False
-        msg = f"⚠️  Columns not in the DwC term list: {unknown}"
-    return res, msg
+#     res = True
+#     msg = "✅ All column names are valid DwC terms"
+#     if unknown:
+#         res = False
+#         msg = f"⚠️  Columns not in the DwC term list: {unknown}"
+#     return res, msg
 
 
 # -------- check_null_values --------
@@ -322,22 +331,7 @@ def check_null_values(df):
  
     @return          A list of columns that contain null values
     """
-    
-    required_columns = [
-    "eventID",
-    "occurrenceID",
-    "eventDate",
-    "decimalLatitude",
-    "decimalLongitude",
-    "countryCode",
-    "geodeticDatum",
-    "scientificName",
-    "basisOfRecord",
-    "occurrenceStatus",
-    "measurementValue",
-    "measurementType",
-    "measurementUnit",
-]
+
     missing = df.columns[df.isna().any()].to_list()
     res = True
     msg = "✅ Passed null values check!"
@@ -490,83 +484,81 @@ def _check_scientific_name(name):
     return requests.get(url, timeout=60)
 
 # -------- execute_checks --------
-async def execute_checks():
-    """
-    Run every check on the uploaded tables and show the results on the page.
-    """
-    output = document.querySelector("#output")
-    status = document.querySelector("#status")
+# -------- execute_checks --------
 
+def execute_checks():
+    """
+    Run every check on the uploaded tables and print the results.
+    """
     # the three uploaded tables (loaded by read_dwc)
     df_event = dfs["event"]
     df_occurrence = dfs["occurrence"]
     df_emof = dfs["emof"]
-    df = None
+    status = document.querySelector("#status")
 
-    # run every check except WoRMS, catching everything they print
-    captured = StringIO()
-    try:
-        with redirect_stdout(captured):
+    # -------- event core checks --------
+    print("\n----- Event core -----")
+    res, msg = required_event_columns(df_event)
+    df_out = pd.DataFrame({"Check": ["Required columns"], "Result": [msg]})
+    #status.innerText += msg
+    print(msg)
+    res, msg = check_event_dupes(df_event)
+    df_out = pd.concat([df_out, pd.DataFrame({"Check": ["Duplicate eventIDs"], "Result": [msg]})], ignore_index=True)
+    #status.innerText += msg
 
-            # -------- event core checks --------
-            print("\n----- Event core -----")
-            res, msg = required_event_columns(df_event)
-            print(msg)
-            check_event_dupes(df_event)
+    # -------- occurrence extension checks --------
+    print("\n----- Occurrence extension -----")
+    res, msg = required_occ_columns(df_occurrence)
+    df_out = pd.concat([df_out, pd.DataFrame({"Check": ["Required occur columns"], "Result": [msg]})], ignore_index=True)
+    #status.innerText += msg
+    print(msg)
 
-            # -------- occurrence extension checks --------
-            print("\n----- Occurrence extension -----")
-            res, msg = required_occ_columns(df_occurrence)
-            print(msg)
-            check_occ_dupes(df_occurrence)
+    res, msg = check_occ_dupes(df_occurrence)
+    df_out = pd.concat([df_out, pd.DataFrame({"Check": ["Duplicate occurrenceIDs"], "Result": [msg]})], ignore_index=True)
+    #status.innerText += msg
 
-            # -------- emof checks --------
-            print("\n----- eMoF -----")
-            res, msg = required_emof_columns(df_emof)
-            print(msg)
+    # -------- emof checks --------
+    print("\n----- eMoF -----")
+    res, msg = required_emof_columns(df_emof)
+    df_out = pd.concat([df_out, pd.DataFrame({"Check": ["Required emof columns"], "Result": [msg]})], ignore_index=True)
+    print(msg)
+    #status.innerText += msg
 
-            # -------- merge the tables --------
-            print("\n----- Merge -----")
-            df, msg = check_merge_tables(
-                df_event=df_event, df_occurrence=df_occurrence, df_emof=df_emof
-            )
-            print(msg)
+    # -------- merge the tables --------
+    # Change this to check keys function
+    # print("\n----- Merge -----")
+    # df, msg = check_merge_tables(
+    #     df_event=df_event, df_occurrence=df_occurrence, df_emof=df_emof
+    # )
+    # df_out = pd.concat([df_out, pd.DataFrame({"Check": ["Merge tables"], "Result": [msg]})], ignore_index=True)
+    # print(msg)
+    #status.innerText += msg
 
-            # -------- merged table checks --------
-            if df is not None:
-                print("\n----- Merged table -----")
-                res, msg = check_null_values(df)
-                print(msg)
-                res, msg = check_latitude(df)
-                print(msg)
-                res, msg = check_longitude(df)
-                print(msg)
-                res, msg = check_depth_consistency(df)
-                print(msg)
-
-    except Exception as e:
-        status.innerText = f"Error while running checks: {e}"
-
-    # show the results so far on the page
-    output.innerHTML += f"<h3>Results</h3><pre>{html.escape(captured.getvalue())}</pre>"
-
-    # -------- WoRMS check (slow, so show a message first) --------
-    if df is not None and "scientificName" in df.columns:
-        n_names = df["scientificName"].dropna().nunique()
-        status.innerText = (
-            f"🐟 Checking {n_names} scientific names against WoRMS... "
-            "this can take a minute for larger datasets. Hang tight!"
-        )
-        await asyncio.sleep(0.1)  # short pause so the browser can show the message
-
-        try:
-            results = check_scientific_names(df)
-            if results:
-                msg = "\n".join(results)
-            else:
-                msg = "✅ All scientific names are accepted in WoRMS!"
-            output.innerHTML += f"<h3>WoRMS</h3><pre>{html.escape(msg)}</pre>"
-        except Exception as e:
-            output.innerHTML += f"<p>❌ WoRMS check failed: {html.escape(str(e))}</p>"
-
-    status.innerText = "✅ All checks finished."
+    # -------- merged table checks --------
+    #if df is not None:
+    print("\n----- Merged table -----")
+    res, msg = check_null_values(df_event)
+    df_out = pd.concat([df_out, pd.DataFrame({"Check": ["Check event null values"], "Result": [msg]})], ignore_index=True)
+    
+    res, msg = check_null_values(df_occurrence)
+    df_out = pd.concat([df_out, pd.DataFrame({"Check": ["Check occurrence null values"], "Result": [msg]})], ignore_index=True)
+    
+    res, msg = check_null_values(df_emof)
+    df_out = pd.concat([df_out, pd.DataFrame({"Check": ["Check emof null values"], "Result": [msg]})], ignore_index=True)
+    #status.innerText += msg
+    print(msg)
+    res, msg = check_latitude(df_event)
+    df_out = pd.concat([df_out, pd.DataFrame({"Check": ["Check latitude"], "Result": [msg]})], ignore_index=True)
+    #status.innerText += msg
+    print(msg)
+    res, msg = check_longitude(df_event)
+    df_out = pd.concat([df_out, pd.DataFrame({"Check": ["Check longitude"], "Result": [msg]})], ignore_index=True)
+    #status.innerText += msg
+    print(msg)
+    res, msg = check_depth_consistency(df_event)
+    df_out = pd.concat([df_out, pd.DataFrame({"Check": ["Check depth consistency"], "Result": [msg]})], ignore_index=True)
+    #status.innerText += msg
+    print(msg)
+    #results = check_scientific_names(df)
+    #[print(msg) for msg in results]
+    status.innerHTML = df_out.set_index("Check").rename_axis(None).to_html(index=True, border=0)
