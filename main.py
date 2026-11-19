@@ -1,8 +1,8 @@
-import pandas as pd
-import janitor  # noqa: F401
 from io import StringIO
-from js import document
 
+import janitor  # noqa: F401
+import pandas as pd
+from js import document
 
 kw = {"encoding_errors": "ignore"}
 clean_names = {
@@ -11,6 +11,7 @@ clean_names = {
     "case_type": "preserve",
     "remove_special": True,
 }
+
 
 def check_merge_tables(df_event, df_occurrence, df_emof):
     """Using `one_to_many` to check if merge keys are unique in left dataset."""
@@ -33,6 +34,7 @@ def check_merge_tables(df_event, df_occurrence, df_emof):
         msg = f"❌ Merge tables failed. \n{err}"
     return df, msg
 
+
 async def load_csv(event):
     global dfs
 
@@ -44,7 +46,7 @@ async def load_csv(event):
     files = [
         ("Event", "event_bd"),
         ("Occurrence", "occurrence_bd"),
-        ("EMOF", "emof_bd")
+        ("EMOF", "emof_bd"),
     ]
 
     loaded = 0
@@ -61,7 +63,7 @@ async def load_csv(event):
             k = name.lower()
             dfs.update({k: df})
             loaded += 1
-            
+
             output.innerHTML += f"""
                 <div class="dataset">
                     <h3>{name}</h3>
@@ -72,10 +74,7 @@ async def load_csv(event):
                 </div>
             """
 
-            html_table = df.head(5).to_html(
-                index=False,
-                border=0
-            )
+            html_table = df.head(5).to_html(index=False, border=0)
 
             output.innerHTML += html_table
 
@@ -85,11 +84,7 @@ async def load_csv(event):
         except Exception as e:
             print(f"Error loading {name}: {e}")
 
-
-    status.innerText = (
-        f"{loaded} CSV file(s) loaded successfully."
-    )
-
+    status.innerText = f"{loaded} CSV file(s) loaded successfully."
 
     if loaded == 3:
         execute_merge()
