@@ -75,13 +75,8 @@ async def load_csv(event):
             """
 
             html_table = df.head(5).to_html(index=False, border=0)
-
             output.innerHTML += html_table
-
-            print(f"\n{name}")
-            print(df.info())
-
-        except Exception as e:
+        except pd.errors.ParserError as e:
             print(f"Error loading {name}: {e}")
 
     status.innerText = f"{loaded} CSV file(s) loaded successfully."
@@ -96,20 +91,11 @@ def execute_merge():
 
     global df, msg
 
-    try:
-        df, msg = check_merge_tables(
-            df_event=dfs["event"],
-            df_occurrence=dfs["occurrence"],
-            df_emof=dfs["emof"],
-        )
+    df, msg = check_merge_tables(
+        df_event=dfs["event"],
+        df_occurrence=dfs["occurrence"],
+        df_emof=dfs["emof"],
+    )
 
-        status = document.querySelector("#status")
-        status.innerText = msg
-
-        if df is not None:
-            print("Merged DataFrame:")
-            print(df.head())
-
-    except Exception as e:
-        status = document.querySelector("#status")
-        status.innerText = f"Error during merge: {e}"
+    status = document.querySelector("#status")
+    status.innerText = msg
