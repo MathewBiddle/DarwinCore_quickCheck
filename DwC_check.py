@@ -112,7 +112,7 @@ async def load_csv(event):
 
 
     if loaded == 3:
-        execute_merge()
+        execute_checks()
     else:
         status.innerText += " Please upload all three CSV files."
 
