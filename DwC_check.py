@@ -468,7 +468,7 @@ def check_scientific_name(name):
     # The API returns a list of lists (one list per name queried).
     is_unique = f"Found 1 match for {name=}"
     if len(results) > 1:
-        is_unique = "⚠️  Found more than 1 match for {name=}, selecting the first one"
+        is_unique = f"⚠️  Found more than 1 match for {name=}, selecting the first one"
 
     # Take first match.
     result = results[0]
@@ -480,7 +480,7 @@ def check_scientific_name(name):
 
 @stamina.retry(on=requests.exceptions.HTTPError, attempts=3)
 def _check_scientific_name(name):
-    url = f"http://www.marinespecies.org/rest/AphiaRecordsByName/{name}?like=true&marine_only=true"
+    url = f"https://www.marinespecies.org/rest/AphiaRecordsByName/{name}?like=true&marine_only=true"
     return requests.get(url, timeout=60)
 
 # -------- execute_checks --------
@@ -559,6 +559,7 @@ def execute_checks():
     df_out = pd.concat([df_out, pd.DataFrame({"Check": ["Check depth consistency"], "Result": [msg]})], ignore_index=True)
     #status.innerText += msg
     print(msg)
-    #results = check_scientific_names(df)
+    results = check_scientific_names(df_occurrence)
+    df_out = pd.concat([df_out, pd.DataFrame({"Check": ["Check scientific names"], "Result": [results if results else "✅ All scientific names are valid"]})], ignore_index=True)
     #[print(msg) for msg in results]
     status.innerHTML = df_out.set_index("Check").rename_axis(None).to_html(index=True, border=0)
