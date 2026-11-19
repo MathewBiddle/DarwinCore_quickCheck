@@ -1,8 +1,8 @@
-import pandas as pd
-import janitor  # noqa: F401
 from io import StringIO
-from js import document
 
+import janitor  # noqa: F401
+import pandas as pd
+from js import document
 
 kw = {"encoding_errors": "ignore"}
 clean_names = {
@@ -11,6 +11,7 @@ clean_names = {
     "case_type": "preserve",
     "remove_special": True,
 }
+
 
 def check_merge_tables(df_event, df_occurrence, df_emof):
     """Using `one_to_many` to check if merge keys are unique in left dataset."""
@@ -33,6 +34,7 @@ def check_merge_tables(df_event, df_occurrence, df_emof):
         msg = f"❌ Merge tables failed. \n{err}"
     return df, msg
 
+
 async def load_csv(event):
     global dfs
 
@@ -44,7 +46,7 @@ async def load_csv(event):
     files = [
         ("Event", "event_bd"),
         ("Occurrence", "occurrence_bd"),
-        ("EMOF", "emof_bd")
+        ("EMOF", "emof_bd"),
     ]
 
     loaded = 0
@@ -61,7 +63,7 @@ async def load_csv(event):
             k = name.lower()
             dfs.update({k: df})
             loaded += 1
-            
+
             output.innerHTML += f"""
                 <div class="dataset">
                     <h3>{name}</h3>
@@ -72,49 +74,28 @@ async def load_csv(event):
                 </div>
             """
 
-            html_table = df.head(5).to_html(
-                index=False,
-                border=0
-            )
-
+            html_table = df.head(5).to_html(index=False, border=0)
             output.innerHTML += html_table
-
-            print(f"\n{name}")
-            print(df.info())
-
-        except Exception as e:
+        except pd.errors.ParserError as e:
             print(f"Error loading {name}: {e}")
 
-
-    status.innerText = (
-        f"{loaded} CSV file(s) loaded successfully."
-    )
-
+    status.innerText = f"{loaded} CSV file(s) loaded successfully."
 
     if loaded == 3:
         execute_merge()
     else:
-        status.innerText += " Please upload all three CSV files."
+        status.innerText += "Fail to load all 3 tables."
 
 
 def execute_merge():
 
     global df, msg
 
-    try:
-        df, msg = check_merge_tables(
-            df_event=dfs["event"],
-            df_occurrence=dfs["occurrence"],
-            df_emof=dfs["emof"],
-        )
+    df, msg = check_merge_tables(
+        df_event=dfs["event"],
+        df_occurrence=dfs["occurrence"],
+        df_emof=dfs["emof"],
+    )
 
-        status = document.querySelector("#status")
-        status.innerText = msg
-
-        if df is not None:
-            print("Merged DataFrame:")
-            print(df.head())
-
-    except Exception as e:
-        status = document.querySelector("#status")
-        status.innerText = f"Error during merge: {e}"
+    status = document.querySelector("#status")
+    status.innerText = msg

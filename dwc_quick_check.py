@@ -25,13 +25,12 @@ DataFrames.
 """
 
 import functools
-
-import stamina
-
-import pandas as pd
-import janitor  # noqa: F401
-import requests
 from pathlib import Path
+
+import janitor  # noqa: F401
+import pandas as pd
+import requests
+import stamina
 
 required_occurrence_columns = [
     "occurrenceID",
