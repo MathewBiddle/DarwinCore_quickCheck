@@ -109,7 +109,7 @@ async def load_csv(event):
 
 
     status.innerText = (
-        f"{loaded} CSV file(s) loaded successfully."
+        f"{loaded} CSV file(s) loaded successfully. Processing checks..."
     )
 
 
